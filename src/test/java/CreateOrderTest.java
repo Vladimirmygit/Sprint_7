@@ -2,7 +2,6 @@ import io.qameta.allure.Description;
 import io.qameta.allure.junit4.DisplayName;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -11,19 +10,12 @@ import org.junit.runners.Parameterized;
 import java.util.Arrays;
 import java.util.List;
 
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.Assert.assertThat;
 
 @RunWith(Parameterized.class)
-public class CreateOrderTest {
-    private static final String BASE_URI = "http://qa-scooter.praktikum-services.ru";
-
+public class CreateOrderTest extends BaseTest {
     private String color;
-
-    @Before
-    public void setUp() {
-        RestAssured.baseURI = BASE_URI;
-    }
 
     public CreateOrderTest(String color) {
         this.color = color;
@@ -47,10 +39,9 @@ public class CreateOrderTest {
         String deliveryDate = "2020-06-06";
         String comment = "Saske, come back to Konoha";
 
-        Response response = given()
-                .contentType("application/json")
-                .body("{\"firstName\": \"" + firstName + "\", \"lastName\": \"" + lastName + "\", \"address\": \"" + address + "\", \"metroStation\": " + metroStation + ", \"phone\": \"" + phone + "\", \"rentTime\": " + rentTime + ", \"deliveryDate\": \"" + deliveryDate + "\", \"comment\": \"" + comment + "\", \"color\": [\"" + color + "\"]}")
-                .post("/api/v1/orders");
+        Order order = new Order(firstName, lastName, address, metroStation, phone, rentTime, deliveryDate, comment, Arrays.asList(color));
+
+        Response response = orderClient.createOrder(order);
 
         response.then().statusCode(201).body("track", notNullValue());
     }

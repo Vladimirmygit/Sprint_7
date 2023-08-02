@@ -8,9 +8,6 @@ public class Courier {
         this.login = login;
         this.password = password;
     }
-
-    // Геттеры и сеттеры для полей (можно сгенерировать автоматически в IDE)
-
     public String getName() {
         return name;
     }

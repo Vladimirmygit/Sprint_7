@@ -1,4 +1,5 @@
 import io.qameta.allure.Description;
+import io.qameta.allure.Step;
 import io.qameta.allure.junit4.DisplayName;
 import io.restassured.RestAssured;
 import io.restassured.response.Response;
@@ -6,99 +7,83 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.CoreMatchers.*;
+import java.util.UUID;
 
-public class CreateCourierTest {
-    private static final String BASE_URI = "http://qa-scooter.praktikum-services.ru";
-    private String courierId;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.junit.Assert.fail;
 
-    @Before
-    public void setUp() {
-        RestAssured.baseURI = BASE_URI;
-    }
-
-    @After
-    public void tearDown() {
-        if (courierId != null) {
-            // Удаление курьера по ID
-            given()
-                    .pathParam("id", courierId)
-                    .when()
-                    .delete("/api/v1/courier/{id}")
-                    .then()
-                    .statusCode(200)
-                    .body("ok", equalTo(true));
-        }
-    }
+public class CreateCourierTest extends BaseTest {
     @Test
     @DisplayName("Новый курьер")
     @Description("Создание нового курьера")
     public void courierCreatedTest() {
-        Courier courier = new Courier("Test224", "Test225", "Test226");
-        Response response = given()
-                .header("Content-type", "application/json")
-                .and()
-                .body(courier)
-                .when()
-                .post("/api/v1/courier");
-        System.out.println(response.getBody().asString());
-        response.then().statusCode(201)
-                .and()
-                .body("ok", equalTo(true));
+        String baseLogin = "TestCourier"; // Базовая часть логина
+        String password = "adda222";
+        String name = "adda212";
 
-        // Получение ID курьера из метода логина
-        courierId = CourierAPIHelper.loginCourier(courier.getLogin(), courier.getPassword());
-        // Проверка, что ID не пустой
-        assert courierId != null;
+        // Генерируем уникальный идентификатор (UUID) и добавляем его к базовой части логина
+        String login = baseLogin + UUID.randomUUID().toString();
+
+        Courier courier = new Courier(name, login, password);
+
+        CourierClient courierClient = new CourierClient();
+
+        // Проверка уникальности логина
+        courierClient.assertCourierLoginIsUnique(courier);
+
+        // Создание курьера и получение ID
+        String courierId = courierClient.createCourierAndGetId(courier.getLogin(), courier.getPassword());
+
+        // Проверка, что ID курьера не пустой
+        assertThat(courierId, notNullValue());
     }
+
+
     @Test
     @DisplayName("Нельзя создать двух одинаковых курьеров")
     @Description("Проверка, что нельзя создать двух одинаковых курьеров")
     public void cannotCreateDuplicateCourierTest() {
-        Courier courier = new Courier("adda2", "adda22", "adda21");
+        String baseLogin = "TestCourier"; // Базовая часть логина
+        String password = "adda222";
+        String name = "adda212";
+
+        // Генерируем уникальный идентификатор (UUID) и добавляем его к базовой части логина
+        String login = baseLogin + UUID.randomUUID().toString();
+
+        Courier courier = new Courier(name, login, password);
+
+        CourierClient courierClient = new CourierClient();
 
         // Первый запрос на создание курьера
-        Response response1 = given()
-                .header("Content-type", "application/json")
-                .and()
-                .body(courier)
-                .when()
-                .post("/api/v1/courier");
-        response1.then().assertThat().statusCode(201)
-                .and()
-                .body("ok", equalTo(true));
-
-        // Второй запрос на создание курьера с тем же логином
-        Response response2 = given()
-                .header("Content-type", "application/json")
-                .and()
-                .body(courier)
-                .when()
-                .post("/api/v1/courier");
-        response2.then().assertThat().statusCode(409);
+        Response response1 = courierClient.createCourier(courier.getLogin(), courier.getPassword());
+        response1.then().assertThat().statusCode(201).and().body("ok", equalTo(true));
 
         // Получение ID курьера из метода логина
-        courierId = CourierAPIHelper.loginCourier(courier.getLogin(), courier.getPassword());
+        String courierId = courierClient.loginCourierAndGetId(courier.getLogin(), courier.getPassword());
 
-        // Проверка, что ID не пустой
-        assert courierId != null;
+        // Второй запрос на создание курьера с тем же логином
+        Response response2 = courierClient.createCourier(courier.getLogin(), courier.getPassword());
+        response2.then().assertThat().statusCode(409);
     }
 
     @Test
     @DisplayName("Нужно передать все обязательные поля")
     @Description("Проверка, что запрос возвращает ошибку, если не передать все обязательные поля")
     public void missingRequiredFieldsTest() {
-        Courier courier = new Courier("Test553", "Test553", null);
+        String baseLogin = "TestCourier"; // Базовая часть логина
+        String password = "";
+        String name = "adda212";
 
-        Response response = given()
-                .header("Content-type", "application/json")
-                .and()
-                .body(courier)
-                .when()
-                .post("/api/v1/courier");
+        // Генерируем уникальный идентификатор (UUID) и добавляем его к базовой части логина
+        String login = baseLogin + UUID.randomUUID().toString();
+
+        Courier courier = new Courier(name, login, password);
+
+        CourierClient courierClient = new CourierClient();
+
+        // Попытка создания курьера с недостаточными данными
+        Response response = courierClient.createCourier(courier.getLogin(), courier.getPassword());
         response.then().assertThat().statusCode(400); // 400 - неверный запрос, недостаточно данных
     }
 }
-
-
